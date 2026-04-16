@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SGPA — SGPA & CGPA   Calculator</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div><h1>&#127891; SGPA & CGPA   Calculator</h1><p>R23 Regulation</p></div>
+  <div class="header-right">
+    <span class="user-chip" id="userChip">...</span>
+    <button class="dark-toggle" onclick="toggleDark()">&#127769; Dark</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+<nav>
+  <a href="dashboard.html">&#127968; Dashboard</a>
+  <a href="sgpa.html">&#128202; SGPA</a>
+  <a href="cgpa.html">&#128200; CGPA</a>
+  <a href="about.html">&#8505;&#65039; About</a>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <h2>&#128202; SGPA Calculator</h2>
+    <div class="sem-select-row">
+      <div>
+        <label>Semester</label>
+        <select id="semSelect">
+          <option value="">-- Select Semester --</option>
+          <option>Semester 1</option><option>Semester 2</option>
+          <option>Semester 3</option><option>Semester 4</option>
+          <option>Semester 5</option><option>Semester 6</option>
+          <option>Semester 7</option><option>Semester 8</option>
+        </select>
+      </div>
+    </div>
+    <div id="subjectRows"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="addSubject()">+ Add Subject</button>
+      <button class="btn btn-primary" onclick="calcSGPA()">Calculate SGPA</button>
+      <button class="btn btn-danger"  onclick="resetForm()">Reset</button>
+    </div>
+    <div id="sgpaError" class="error"></div>
+    <div id="sgpaResult" style="display:none;">
+      <div class="result-box">
+        <div class="sub" id="sgpaSemLabel"></div>
+        <div class="value" id="sgpaValue">0.00</div>
+        <div class="sub" id="sgpaPercent"></div>
+        <div class="perf" id="sgpaPerf"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="saveCloud()">&#128190; Save to CGPA</button>
+        <button class="btn btn-outline" onclick="dlPDF()">&#128196; Download PDF</button>
+      </div>
+      <div id="saveMsg" class="info" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>&#128203; Grade Reference (R23)</h2>
+    <div class="table-wrap">
+      <table class="grade-table">
+        <thead><tr><th>Marks</th><th>Grade</th><th>Points</th><th>Performance</th></tr></thead>
+        <tbody>
+          <tr><td>90+</td><td>S</td><td>10</td><td>Superior</td></tr>
+          <tr><td>80&#8211;89</td><td>A</td><td>9</td><td>Excellent</td></tr>
+          <tr><td>70&#8211;79</td><td>B</td><td>8</td><td>Very Good</td></tr>
+          <tr><td>60&#8211;69</td><td>C</td><td>7</td><td>Good</td></tr>
+          <tr><td>50&#8211;59</td><td>D</td><td>6</td><td>Average</td></tr>
+          <tr><td>40&#8211;49</td><td>E</td><td>5</td><td>Pass</td></tr>
+          <tr><td>&lt;40</td><td>F</td><td>0</td><td>Fail</td></tr>
+          <tr><td>Absent</td><td>Ab</td><td>0</td><td>Absent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, saveSemester, GRADE_POINTS, gradePerformance, toPercent,
+           toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded, stripEmoji } from "./app.js";
+  window.toggleDark = toggleDark;
+  window.logout = logout;
+  initDarkMode();
+  setActiveNav();
+
+  let count = 0, user = null, last = null, saved = false;
+
+  requireAuth(u => {
+    user = u;
+    document.getElementById("userChip").textContent = u.email;
+    addSubject(); addSubject();
+  });
+
+  window.addSubject = () => {
+    count++;
+    const id = count;
+    const row = document.createElement("div");
+    row.className = "subject-row";
+    row.id = "row-" + id;
+    row.innerHTML =
+      '<div class="sub-name"><label>Subject Name</label>' +
+      '<input type="text" placeholder="e.g. Mathematics" id="name-' + id + '"/></div>' +
+      '<div><label>Credits</label>' +
+      '<input type="number" min="1" max="6" placeholder="1-6" id="credit-' + id + '"/></div>' +
+      '<div><label>Grade</label>' +
+      '<select id="grade-' + id + '"><option value="">Grade</option>' +
+      '<option>S</option><option>A</option><option>B</option><option>C</option>' +
+      '<option>D</option><option>E</option><option>F</option><option>Ab</option></select></div>' +
+      '<button class="remove-btn" onclick="removeSubject(' + id + ')">&#x2715;</button>';
+    document.getElementById("subjectRows").appendChild(row);
+  };
+
+  window.removeSubject = id => document.getElementById("row-" + id)?.remove();
+
+  window.resetForm = () => {
+    document.getElementById("subjectRows").innerHTML = "";
+    document.getElementById("semSelect").value = "";
+    document.getElementById("sgpaResult").style.display = "none";
+    document.getElementById("sgpaError").textContent = "";
+    document.getElementById("saveMsg").textContent = "";
+    count = 0; last = null; saved = false;
+    addSubject(); addSubject();
+  };
+
+  window.calcSGPA = () => {
+    const err = document.getElementById("sgpaError");
+    err.textContent = "";
+    document.getElementById("saveMsg").textContent = "";
+    saved = false;
+    const sem = document.getElementById("semSelect").value;
+    if (!sem) { err.textContent = "Please select a semester."; return; }
+    const rows = document.querySelectorAll("#subjectRows .subject-row");
+    if (!rows.length) { err.textContent = "Add at least one subject."; return; }
+    let tc = 0, tp = 0, valid = true;
+    rows.forEach(row => {
+      const id = row.id.split("-")[1];
+      const cr = parseFloat(document.getElementById("credit-" + id).value);
+      const gr = document.getElementById("grade-" + id).value;
+      if (!cr || cr < 1 || cr > 6 || !gr) { valid = false; }
+      else { tc += cr; tp += cr * GRADE_POINTS[gr]; }
+    });
+    if (!valid) { err.textContent = "Fill all credits (1-6) and grades correctly."; return; }
+    const sgpa = parseFloat((tp/tc).toFixed(2));
+    document.getElementById("sgpaValue").textContent   = sgpa.toFixed(2);
+    document.getElementById("sgpaPercent").textContent = "approx " + toPercent(sgpa) + "%";
+    document.getElementById("sgpaSemLabel").textContent = sem;
+    document.getElementById("sgpaPerf").textContent    = gradePerformance(sgpa);
+    document.getElementById("sgpaResult").style.display = "";
+    last = { sem, sgpa, credits: tc };
+  };
+
+  window.saveCloud = async () => {
+    const msg = document.getElementById("saveMsg");
+    if (!last)  { msg.textContent = "Calculate SGPA first."; return; }
+    if (saved)  { msg.textContent = "Already saved!"; return; }
+    msg.textContent = "Saving...";
+    try {
+      await saveSemester(user.uid, last);
+      msg.textContent = last.sem + " saved successfully!";
+      saved = true;
+    } catch(e) {
+      msg.textContent = "Failed to save. Check your connection.";
+    }
+  };
+
+  window.dlPDF = () => {
+    if (!last) { document.getElementById("sgpaError").textContent = "Calculate SGPA first."; return; }
+    const { jsPDF } = window.jspdf;
+    const doc  = new jsPDF();
+    const sem  = document.getElementById("semSelect").value;
+    const sgpa = document.getElementById("sgpaValue").textContent;
+    const pct  = document.getElementById("sgpaPercent").textContent;
+    const perf = stripEmoji(document.getElementById("sgpaPerf").textContent);
+    doc.setFontSize(16); doc.text("JNTUGV R23 - SGPA Result", 20, 20);
+    doc.setFontSize(11);
+    doc.text("Semester   : " + sem, 20, 34);
+    doc.text("SGPA       : " + sgpa, 20, 43);
+    doc.text("Percentage : " + pct, 20, 52);
+    doc.text("Performance: " + perf, 20, 61);
+    doc.setFontSize(10); doc.text("Subject Details:", 20, 74);
+    let y = 84;
+    document.querySelectorAll("#subjectRows .subject-row").forEach(row => {
+      const id = row.id.split("-")[1];
+      const nm = document.getElementById("name-" + id).value || "Subject";
+      const cr = document.getElementById("credit-" + id).value;
+      const gr = document.getElementById("grade-" + id).value;
+      y = pdfNewPageIfNeeded(doc, y);
+      doc.text("  " + nm + "  |  Credits: " + cr + "  |  Grade: " + gr + "  |  Points: " + GRADE_POINTS[gr], 20, y);
+      y += 9;
+    });
+    doc.save("SGPA_" + sem.replace(/\s+/g,"_") + ".pdf");
+  };
+</script>
+</body>
+</html>

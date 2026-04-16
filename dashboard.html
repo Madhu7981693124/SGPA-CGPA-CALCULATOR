@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — SGPA & CGPA   Calculator</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<header>
+  <div><h1>&#127891; SGPA & CGPA   Calculator</h1><p>R23 Regulation</p></div>
+  <div class="header-right">
+    <span class="user-chip" id="userChip">...</span>
+    <button class="dark-toggle" onclick="toggleDark()">&#127769; Dark</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+<nav>
+  <a href="dashboard.html">&#127968; Dashboard</a>
+  <a href="sgpa.html">&#128202; SGPA</a>
+  <a href="cgpa.html">&#128200; CGPA</a>
+  <a href="about.html">&#8505;&#65039; About</a>
+</nav>
+
+<div class="page">
+  <div class="hero">
+    <h2>Welcome back, <span id="userName">Student</span> &#128075;</h2>
+    <p>Track your academic performance across all semesters.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val" id="statSems">&#8212;</div><div class="stat-lbl">Semesters</div></div>
+    <div class="stat-card"><div class="stat-val" id="statCGPA">&#8212;</div><div class="stat-lbl">CGPA</div></div>
+    <div class="stat-card"><div class="stat-val" id="statCredits">&#8212;</div><div class="stat-lbl">Total Credits</div></div>
+    <div class="stat-card"><div class="stat-val" id="statPerf" style="font-size:1.3rem;">&#8212;</div><div class="stat-lbl">Performance</div></div>
+  </div>
+
+  <div class="card">
+    <h2>&#128200; SGPA Trend</h2>
+    <p class="info" id="noChartMsg">No data yet. Save a semester to see your trend.</p>
+    <canvas id="sgpaChart" style="display:none;"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>&#128203; Semester History</h2>
+    <div class="semester-list" id="semHistory"><p class="info">Loading...</p></div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">&#128202;</div><h3>SGPA Calculator</h3>
+      <p>Calculate your semester GPA.</p>
+      <div class="btn-row" style="justify-content:center;margin-top:10px;">
+        <a href="sgpa.html" class="btn btn-primary btn-sm">Open</a>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128200;</div><h3>CGPA Calculator</h3>
+      <p>View and compute your CGPA.</p>
+      <div class="btn-row" style="justify-content:center;margin-top:10px;">
+        <a href="cgpa.html" class="btn btn-primary btn-sm">Open</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, getSemesters, deleteSemester, gradePerformance, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
+  window.toggleDark = toggleDark;
+  window.logout = logout;
+  initDarkMode();
+  setActiveNav();
+
+  let chartInst = null;
+  let uid = null;
+
+  requireAuth(async user => {
+    uid = user.uid;
+    document.getElementById("userChip").textContent = user.email;
+    document.getElementById("userName").textContent = user.displayName || user.email.split("@")[0];
+    const sems = await getSemesters(uid);
+    renderStats(sems);
+    renderChart(sems);
+    renderHistory(sems);
+  });
+
+  function renderStats(sems) {
+    if (!sems.length) return;
+    const tw = sems.reduce((s,x) => s + parseFloat(x.sgpa)*x.credits, 0);
+    const tc = sems.reduce((s,x) => s + x.credits, 0);
+    const cgpa = parseFloat((tw/tc).toFixed(2));
+    document.getElementById("statSems").textContent    = sems.length;
+    document.getElementById("statCGPA").textContent    = cgpa.toFixed(2);
+    document.getElementById("statCredits").textContent = tc;
+    document.getElementById("statPerf").textContent    = gradePerformance(cgpa);
+  }
+
+  function renderChart(sems) {
+    const canvas = document.getElementById("sgpaChart");
+    const msg    = document.getElementById("noChartMsg");
+    if (!sems.length) { msg.style.display=""; canvas.style.display="none"; return; }
+    msg.style.display  = "none";
+    canvas.style.display = "";
+    if (chartInst) chartInst.destroy();
+    const dark  = document.documentElement.getAttribute("data-theme") === "dark";
+    const color = dark ? "#818cf8" : "#4f46e5";
+    const grid  = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
+    const tick  = dark ? "#94a3b8" : "#6b7280";
+    chartInst = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: sems.map(s => s.sem.replace("Semester ","Sem ")),
+        datasets: [{
+          data: sems.map(s => parseFloat(s.sgpa)),
+          borderColor: color,
+          backgroundColor: dark ? "rgba(129,140,248,0.1)" : "rgba(79,70,229,0.08)",
+          borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: color,
+          tension: 0.35, fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => " SGPA: " + c.parsed.y.toFixed(2) } }
+        },
+        scales: {
+          y: { min:0, max:10, ticks:{ stepSize:1, color:tick }, grid:{ color:grid } },
+          x: { ticks:{ color:tick }, grid:{ color:grid } }
+        }
+      }
+    });
+  }
+
+  function renderHistory(sems) {
+    const el = document.getElementById("semHistory");
+    if (!sems.length) { el.innerHTML = '<p class="info">No semesters saved yet.</p>'; return; }
+    el.innerHTML = sems.map(s => `
+      <div class="sem-item">
+        <div class="sem-info"><span>${s.sem}</span><span class="badge">${s.credits} cr</span></div>
+        <div class="sem-actions">
+          <span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span>
+          <button class="remove-btn" onclick="delSem('${s.sem}')">&#x2715;</button>
+        </div>
+      </div>`).join("");
+  }
+
+  window.delSem = async sem => {
+    if (!confirm("Delete " + sem + "?")) return;
+    await deleteSemester(uid, sem);
+    location.reload();
+  };
+</script>
+</body>
+</html>
