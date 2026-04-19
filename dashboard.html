@@ -46,7 +46,6 @@
 
   <div class="card">
     <h2>&#128203; Semester History</h2>
-    <p class="info" id="historyProfileInfo">Profile: Loading...</p>
     <div class="btn-row" style="margin-bottom:14px;">
       <button class="btn btn-primary" onclick="openAddModal()">+ Add Semester</button>
       <button class="btn btn-outline" onclick="exportDashboardPDF()">Export PDF</button>
@@ -178,8 +177,6 @@
       document.getElementById("profileBranchTitle").textContent = profile?.branch || "Branch";
       document.getElementById("profileRollTitle").textContent = profile?.roll ? `Roll No: ${profile.roll}` : "Roll No";
       document.getElementById("profileImage").src = profileImageData;
-
-      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: ${profile?.roll || 'N/A'} | Branch: ${profile?.branch || 'N/A'}`;
     } catch (error) {
       console.error("Profile load error:", error);
       // Fallback to basic user info
@@ -187,8 +184,6 @@
       document.getElementById("profileName").value = name;
       document.getElementById("profileNameTitle").textContent = name;
       document.getElementById("profileImage").src = currentUser.photoURL || `https://i.pravatar.cc/150?u=${encodeURIComponent(currentUser.email || 'user')}`;
-
-      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: N/A | Branch: N/A`;
     }
   }
 
@@ -236,8 +231,6 @@
       document.getElementById("profileNameTitle").textContent = name;
       document.getElementById("profileBranchTitle").textContent = branch;
       document.getElementById("profileRollTitle").textContent = `Roll No: ${roll}`;
-
-      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: ${roll} | Branch: ${branch}`;
 
       msg.textContent = "Profile saved successfully.";
     } catch (error) {
@@ -328,170 +321,6 @@
       btn.addEventListener("click", () => exportSemesterCSV(decodeURIComponent(btn.dataset.exportCsv)));
     });
   }
-
-  window.exportSemesterPDF = async (sem) => {
-    const data = await getSemester(uid, sem);
-    if (!data) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const title = "JAWAHARLAL NEHRU TECHNOLOGICAL UNIVERSITY GURJAJADA VIZIANAGARAM";
-    const subtitle = "III B. TECH | SEMESTER REGULAR EXAMINATIONS (R23)";
-    doc.setFontSize(12);
-    doc.text(title, 40, 40);
-    doc.setFontSize(10);
-    doc.text(subtitle, 40, 56);
-    doc.setLineWidth(1);
-    doc.line(40, 66, 555, 66);
-    // Profile
-    const profile = await getUserProfile(uid);
-    const name = profile?.name || currentUser.displayName || "Student";
-    const roll = profile?.roll || "N/A";
-    const branch = profile?.branch || "N/A";
-    doc.setFontSize(11);
-    doc.text(`Name: ${name}`, 40, 80);
-    doc.text(`Roll Number: ${roll}`, 40, 96);
-    doc.text(`Branch: ${branch}`, 40, 112);
-    doc.setFontSize(16);
-    doc.text("SEMESTER RESULT", 40, 136);
-    doc.setFontSize(11);
-    doc.text(`Semester : ${sem}`, 40, 158);
-    doc.text(`SGPA     : ${parseFloat(data.sgpa).toFixed(2)}`, 40, 174);
-    doc.text(`Credits  : ${data.credits}`, 40, 190);
-    doc.text(`Subjects : ${data.subjects.length}`, 40, 206);
-    const perf = gradePerformance(data.sgpa);
-    doc.text(`Performance: ${perf}`, 40, 222);
-    let y = 248;
-    doc.setFontSize(11);
-    doc.text("S.no", 40, y);
-    doc.text("Subject", 80, y);
-    doc.text("Grade", 320, y);
-    doc.text("Grade Point", 380, y);
-    doc.text("Credits", 450, y);
-    doc.text("Status", 510, y);
-    y += 8;
-    doc.setLineWidth(0.5);
-    doc.line(40, y, 555, y);
-    y += 16;
-    data.subjects.forEach((sub, index) => {
-      y = pdfNewPageIfNeeded(doc, y + 2);
-      const status = ["F", "Ab"].includes(sub.grade) ? "Fail" : "Pass";
-      doc.text(String(index + 1), 40, y);
-      doc.text(sub.name || "Subject", 80, y);
-      doc.text(sub.grade, 320, y);
-      doc.text(String(GRADE_POINTS[sub.grade] || 0), 385, y);
-      doc.text(String(sub.credit), 455, y);
-      doc.text(status, 510, y);
-      y += 18;
-    });
-    y += 12;
-    if (y > 740) y = pdfNewPageIfNeeded(doc, y);
-    doc.setFontSize(10);
-    doc.text(`Generated from SGPA & CGPA Calculator`, 40, y);
-    doc.save(`Semester_${sem.replace(/\s+/g, "_")}.pdf`);
-  };
-
-  window.exportSemesterCSV = async (sem) => {
-    const data = await getSemester(uid, sem);
-    if (!data) return;
-    const profile = await getUserProfile(uid);
-    const name = profile?.name || currentUser.displayName || "Student";
-    const roll = profile?.roll || "N/A";
-    const branch = profile?.branch || "N/A";
-    let csv = `Name,${name}\nRoll Number,${roll}\nBranch,${branch}\n\nSubject,Credits,Grade,Points\n`;
-    data.subjects.forEach(sub => {
-      const pt = GRADE_POINTS[sub.grade] || 0;
-      csv += `"${sub.name || "Subject"}",${sub.credit},${sub.grade},${pt}\n`;
-    });
-    csv += `\nSemester,${sem}\nSGPA,${data.sgpa}\nCredits,${data.credits}\n`;
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Semester_${sem.replace(/\s+/g, "_")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  window.exportDashboardPDF = async () => {
-    const sems = allSemesters;
-    if (!sems.length) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const title = "JAWAHARLAL NEHRU TECHNOLOGICAL UNIVERSITY GURJAJADA VIZIANAGARAM";
-    const subtitle = "III B. TECH | SEMESTER REGULAR EXAMINATIONS (R23)";
-    doc.setFontSize(12);
-    doc.text(title, 40, 40);
-    doc.setFontSize(10);
-    doc.text(subtitle, 40, 56);
-    doc.setLineWidth(1);
-    doc.line(40, 66, 555, 66);
-    // Profile
-    const profile = await getUserProfile(uid);
-    const name = profile?.name || currentUser.displayName || "Student";
-    const roll = profile?.roll || "N/A";
-    const branch = profile?.branch || "N/A";
-    doc.setFontSize(11);
-    doc.text(`Name: ${name}`, 40, 80);
-    doc.text(`Roll Number: ${roll}`, 40, 96);
-    doc.text(`Branch: ${branch}`, 40, 112);
-    const tw = sems.reduce((s,x) => s + parseFloat(x.sgpa)*x.credits, 0);
-    const tc = sems.reduce((s,x) => s + x.credits, 0);
-    const cgpa = parseFloat((tw/tc).toFixed(2));
-    doc.setFontSize(16);
-    doc.text("CGPA RESULT", 40, 136);
-    doc.setFontSize(11);
-    doc.text(`CGPA     : ${cgpa.toFixed(2)}`, 40, 158);
-    doc.text(`Total Credits  : ${tc}`, 40, 174);
-    doc.text(`Semesters : ${sems.length}`, 40, 190);
-    doc.text(`Performance: ${gradePerformance(cgpa)}`, 40, 206);
-    let y = 232;
-    doc.setFontSize(11);
-    doc.text("Semester", 40, y);
-    doc.text("SGPA", 200, y);
-    doc.text("Credits", 280, y);
-    doc.text("Performance", 360, y);
-    y += 8;
-    doc.setLineWidth(0.5);
-    doc.line(40, y, 555, y);
-    y += 16;
-    sems.forEach((s, index) => {
-      y = pdfNewPageIfNeeded(doc, y + 2);
-      doc.text(s.sem, 40, y);
-      doc.text(parseFloat(s.sgpa).toFixed(2), 200, y);
-      doc.text(String(s.credits), 280, y);
-      doc.text(gradePerformance(s.sgpa), 360, y);
-      y += 18;
-    });
-    y += 12;
-    if (y > 740) y = pdfNewPageIfNeeded(doc, y);
-    doc.setFontSize(10);
-    doc.text(`Generated from SGPA & CGPA Calculator`, 40, y);
-    doc.save(`CGPA_${name.replace(/\s+/g, "_")}.pdf`);
-  };
-
-  window.exportDashboardCSV = async () => {
-    const sems = allSemesters;
-    if (!sems.length) return;
-    const profile = await getUserProfile(uid);
-    const name = profile?.name || currentUser.displayName || "Student";
-    const roll = profile?.roll || "N/A";
-    const branch = profile?.branch || "N/A";
-    let csv = `Name,${name}\nRoll Number,${roll}\nBranch,${branch}\n\nSemester,SGPA,Credits,Performance\n`;
-    sems.forEach(s => {
-      csv += `"${s.sem}",${s.sgpa},${s.credits},${gradePerformance(s.sgpa)}\n`;
-    });
-    const tw = sems.reduce((s,x) => s + parseFloat(x.sgpa)*x.credits, 0);
-    const tc = sems.reduce((s,x) => s + x.credits, 0);
-    const cgpa = parseFloat((tw/tc).toFixed(2));
-    csv += `\nCGPA,${cgpa}\nTotal Credits,${tc}\nSemesters,${sems.length}\nPerformance,${gradePerformance(cgpa)}\n`;
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `CGPA_${name.replace(/\s+/g, "_")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   window.openEditModal = async (sem) => {
     editingSem = sem;
