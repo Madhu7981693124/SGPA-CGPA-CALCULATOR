@@ -45,6 +45,30 @@
   <div class="card">
     <h2>&#128203; Semester History</h2>
     <div class="semester-list" id="semHistory"><p class="info">Loading...</p></div>
+    <button class="btn btn-primary" onclick="openAddModal()" style="margin-top:10px;">+ Add Semester</button>
+  </div>
+
+  <!-- Edit/Add Modal -->
+  <div id="editModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Edit Semester</h3>
+        <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Semester Name</label>
+          <input type="text" id="editSemName" placeholder="e.g. Semester 1"/>
+        </div>
+        <div id="editSubjectRows"></div>
+        <button class="btn btn-outline btn-sm" onclick="addSubject()">+ Add Subject</button>
+      </div>
+      <div id="editError" class="error"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSemester()">Save</button>
+      </div>
+    </div>
   </div>
 
   <div class="feature-grid">
@@ -66,7 +90,7 @@
 </div>
 
 <script type="module">
-  import { requireAuth, getSemesters, deleteSemester, gradePerformance, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
+  import { requireAuth, getSemesters, getSemester, saveSemester, deleteSemester, gradePerformance, GRADE_POINTS, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
   window.toggleDark = toggleDark;
   window.logout = logout;
   initDarkMode();
@@ -74,15 +98,19 @@
 
   let chartInst = null;
   let uid = null;
+  let allSemesters = [];
+  let editingSem = null;
+  let isAdding = false;
+  let subjectCount = 0;
 
   requireAuth(async user => {
     uid = user.uid;
     document.getElementById("userChip").textContent = user.email;
     document.getElementById("userName").textContent = user.displayName || user.email.split("@")[0];
-    const sems = await getSemesters(uid);
-    renderStats(sems);
-    renderChart(sems);
-    renderHistory(sems);
+    allSemesters = await getSemesters(uid);
+    renderStats(allSemesters);
+    renderChart(allSemesters);
+    renderHistory(allSemesters);
   });
 
   function renderStats(sems) {
@@ -136,20 +164,154 @@
   function renderHistory(sems) {
     const el = document.getElementById("semHistory");
     if (!sems.length) { el.innerHTML = '<p class="info">No semesters saved yet.</p>'; return; }
-    el.innerHTML = sems.map(s => `
-      <div class="sem-item">
-        <div class="sem-info"><span>${s.sem}</span><span class="badge">${s.credits} cr</span></div>
-        <div class="sem-actions">
-          <span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span>
-          <button class="remove-btn" onclick="delSem('${s.sem}')">&#x2715;</button>
+    el.innerHTML = sems.map(s => {
+      const subjectList = (s.subjects && s.subjects.length)
+        ? s.subjects.map(sub => `<div class="subject-detail"><span class="sub-name-text">${sub.name}</span><span class="sub-meta">Credits: ${sub.credit} | Grade: <strong>${sub.grade}</strong></span></div>`).join("")
+        : "<p class='info' style='margin:0;'>No subjects recorded.</p>";
+      return `
+      <div class="sem-accordion">
+        <div class="sem-header" onclick="toggleSem('${s.sem}')">
+          <div class="sem-title">
+            <span class="sem-name">${s.sem}</span>
+            <span class="badge">${s.credits} cr</span>
+            <span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span>
+          </div>
+          <div class="sem-header-actions">
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openEditModal('${s.sem}')">Edit</button>
+            <button class="remove-btn" onclick="event.stopPropagation(); delSem('${s.sem}')">&#x2715;</button>
+            <span class="expand-icon" id="icon-${s.sem.replace(/\s+/g,'_')}">&#9660;</span>
+          </div>
         </div>
-      </div>`).join("");
+        <div class="sem-body" id="body-${s.sem.replace(/\s+/g,'_')}">
+          ${subjectList}
+        </div>
+      </div>`;
+    }).join("");
   }
+
+  window.toggleSem = (sem) => {
+    const key = sem.replace(/\s+/g,'_');
+    const body = document.getElementById("body-" + key);
+    const icon = document.getElementById("icon-" + key);
+    const isOpen = body.classList.contains("expanded");
+    body.classList.toggle("expanded", !isOpen);
+    icon.textContent = isOpen ? "▼" : "▲";
+  };
+
+  window.openEditModal = async (sem) => {
+    editingSem = sem;
+    isAdding = false;
+    document.getElementById("modalTitle").textContent = "Edit " + sem;
+    document.getElementById("editSemName").value = sem;
+    document.getElementById("editSemName").readOnly = true;
+    document.getElementById("editSubjectRows").innerHTML = "";
+    document.getElementById("editError").textContent = "";
+    subjectCount = 0;
+
+    const data = await getSemester(uid, sem);
+    if (data && data.subjects && data.subjects.length) {
+      data.subjects.forEach(s => addSubject(s));
+    } else {
+      addSubject();
+      addSubject();
+    }
+    document.getElementById("editModal").style.display = "flex";
+  };
+
+  window.openAddModal = () => {
+    editingSem = null;
+    isAdding = true;
+    document.getElementById("modalTitle").textContent = "Add New Semester";
+    document.getElementById("editSemName").value = "";
+    document.getElementById("editSemName").readOnly = false;
+    document.getElementById("editSubjectRows").innerHTML = "";
+    document.getElementById("editError").textContent = "";
+    subjectCount = 0;
+    addSubject();
+    addSubject();
+    document.getElementById("editModal").style.display = "flex";
+  };
+
+  window.closeModal = () => {
+    document.getElementById("editModal").style.display = "none";
+    editingSem = null;
+    isAdding = false;
+  };
+
+  window.addSubject = (prefill) => {
+    subjectCount++;
+    const id = subjectCount;
+    const row = document.createElement("div");
+    row.className = "subject-row";
+    row.id = "sub-row-" + id;
+    row.innerHTML =
+      '<div class="sub-name"><label>Subject Name</label>' +
+      '<input type="text" placeholder="e.g. Mathematics" id="sub-name-' + id + '"/></div>' +
+      '<div><label>Credits</label>' +
+      '<input type="number" min="1" max="6" placeholder="1-6" id="sub-credit-' + id + '"/></div>' +
+      '<div><label>Grade</label>' +
+      '<select id="sub-grade-' + id + '"><option value="">Grade</option>' +
+      '<option>S</option><option>A</option><option>B</option><option>C</option>' +
+      '<option>D</option><option>E</option><option>F</option><option>Ab</option></select></div>' +
+      '<button class="remove-btn" onclick="removeSubject(' + id + ')">&#x2715;</button>';
+    document.getElementById("editSubjectRows").appendChild(row);
+    if (prefill) {
+      document.getElementById("sub-name-" + id).value   = prefill.name   || "";
+      document.getElementById("sub-credit-" + id).value = prefill.credit || "";
+      document.getElementById("sub-grade-" + id).value  = prefill.grade  || "";
+    }
+  };
+
+  window.removeSubject = id => document.getElementById("sub-row-" + id)?.remove();
+
+  window.saveSemester = async () => {
+    const err = document.getElementById("editError");
+    err.textContent = "";
+    const semName = document.getElementById("editSemName").value.trim();
+    if (!semName) { err.textContent = "Please enter semester name."; return; }
+
+    if (isAdding) {
+      const exists = allSemesters.some(s => s.sem.toLowerCase() === semName.toLowerCase());
+      if (exists) { err.textContent = "Semester already exists."; return; }
+    }
+
+    const rows = document.querySelectorAll("#editSubjectRows .subject-row");
+    if (!rows.length) { err.textContent = "Add at least one subject."; return; }
+
+    let tc = 0, tp = 0, valid = true;
+    const subjects = [];
+    rows.forEach(row => {
+      const id = row.id.split("-")[2];
+      const nm = document.getElementById("sub-name-" + id).value.trim();
+      const cr = parseFloat(document.getElementById("sub-credit-" + id).value);
+      const gr = document.getElementById("sub-grade-" + id).value;
+      if (!cr || cr < 1 || cr > 6 || !gr) { valid = false; }
+      else { tc += cr; tp += cr * GRADE_POINTS[gr]; subjects.push({ name: nm || "Subject", credit: cr, grade: gr }); }
+    });
+    if (!valid) { err.textContent = "Fill all credits (1-6) and grades correctly."; return; }
+
+    const sgpa = parseFloat((tp/tc).toFixed(2));
+    const data = { sem: semName, sgpa, credits: tc, subjects };
+
+    try {
+      await saveSemester(uid, data);
+      closeModal();
+      allSemesters = await getSemesters(uid);
+      renderStats(allSemesters);
+      renderChart(allSemesters);
+      renderHistory(allSemesters);
+    } catch(e) {
+      err.textContent = "Failed to save. Check your connection.";
+    }
+  };
 
   window.delSem = async sem => {
     if (!confirm("Delete " + sem + "?")) return;
     await deleteSemester(uid, sem);
-    location.reload();
+    allSemesters = await getSemesters(uid);
+    renderStats(allSemesters);
+    renderChart(allSemesters);
+    renderHistory(allSemesters);
   };
 </script>
 </body>

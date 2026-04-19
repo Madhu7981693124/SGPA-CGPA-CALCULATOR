@@ -92,6 +92,12 @@ export async function getSemesters(uid) {
     .sort((a, b) => (parseInt(a.sem.replace(/\D/g,""))||0) - (parseInt(b.sem.replace(/\D/g,""))||0));
 }
 
+export async function getSemester(uid, sem) {
+  const docRef = doc(db, "users", uid, "semesters", semKey(sem));
+  const snap = await getDoc(docRef);
+  return snap.exists() ? snap.data() : null;
+}
+
 export async function deleteSemester(uid, sem) {
   await deleteDoc(doc(db, "users", uid, "semesters", semKey(sem)));
 }
