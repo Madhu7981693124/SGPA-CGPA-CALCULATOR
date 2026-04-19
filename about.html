@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>About — SGPA & CGPA Calculator</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header>
+  <div><h1>&#127891; SGPA & CGPA Calculator</h1><p>R23 Regulation</p></div>
+  <div class="header-right">
+    <span class="user-chip" id="userChip">...</span>
+    <button class="dark-toggle" onclick="toggleDark()">&#127769; Dark</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+<nav>
+  <a href="dashboard.html">&#127968; Dashboard</a>
+  <a href="sgpa.html">&#128202; SGPA</a>
+  <a href="cgpa.html">&#128200; CGPA</a>
+  <a href="about.html">&#8505;&#65039; About</a>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <h2>&#8505;&#65039; About This App</h2>
+    <p>This SGPA & CGPA Calculator is designed for students following the R23 Regulation. It helps you calculate your Semester Grade Point Average (SGPA) and Cumulative Grade Point Average (CGPA) easily.</p>
+    <h3>Features:</h3>
+    <ul>
+      <li>Calculate SGPA for individual semesters</li>
+      <li>Track CGPA across all semesters</li>
+      <li>Save and manage your academic data</li>
+      <li>Visual charts for performance trends</li>
+      <li>Dark mode support</li>
+    </ul>
+    <h3>Grade Points (R23 Regulation):</h3>
+    <table class="grade-table">
+      <tr><th>Grade</th><th>Points</th></tr>
+      <tr><td>S</td><td>10</td></tr>
+      <tr><td>A</td><td>9</td></tr>
+      <tr><td>B</td><td>8</td></tr>
+      <tr><td>C</td><td>7</td></tr>
+      <tr><td>D</td><td>6</td></tr>
+      <tr><td>E</td><td>5</td></tr>
+      <tr><td>F</td><td>0</td></tr>
+      <tr><td>Ab</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, logout, initDarkMode, toggleDark, setActiveNav } from "./app.js";
+  window.toggleDark = toggleDark;
+  window.logout = logout;
+  initDarkMode();
+  setActiveNav();
+
+  requireAuth(async user => {
+    document.getElementById("userChip").textContent = user.email;
+  });
+</script>
+</body>
+</html>
