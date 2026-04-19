@@ -34,7 +34,17 @@ nav a{padding:8px 16px;border-radius:8px;text-decoration:none;color:var(--subtex
 nav a.active,nav a:hover{background:var(--primary);color:#fff;}
 
 /* page */
-.page{padding:24px;max-width:860px;margin:0 auto;}
+.page{display:grid;grid-template-columns:1fr 320px;gap:24px;padding:24px;max-width:1200px;margin:0 auto;}
+
+.sidebar{display:flex;flex-direction:column;gap:20px;}
+
+.profile-card{position:sticky;top:90px;}
+.profile-top{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.profile-image{width:72px;height:72px;border-radius:18px;overflow:hidden;border:2px solid var(--primary);background:var(--border);}
+.profile-image img{width:100%;height:100%;object-fit:cover;}
+.profile-meta h3{margin:0;font-size:1.05rem;color:var(--primary);}
+.profile-meta p{margin:4px 0 0;color:var(--subtext);font-size:.9rem;}
+.profile-meta .btn-sm{margin-top:10px;padding:6px 10px;}
 
 /* card */
 .card{background:var(--card);border-radius:16px;padding:24px;
@@ -76,6 +86,7 @@ select:focus,input:focus{border-color:var(--primary);}
 .subject-row .sub-name label{display:none;}
 .subject-row input, .subject-row select{margin-top:0;}
 @media(max-width:700px){
+  .page{grid-template-columns:1fr;}
   .subject-header, .subject-row{grid-template-columns:1fr 1fr;}
   .subject-header span:nth-child(3), .subject-header span:nth-child(4),
   .subject-row .remove-btn{grid-column:1/-1;}
@@ -214,7 +225,25 @@ select:focus,input:focus{border-color:var(--primary);}
 .grade-table th{background:var(--card);font-weight:600;}
 
 /* semester table */
-.semester-table{width:100%;border-collapse:collapse;margin-top:10px;}
-.semester-table th, .semester-table td{padding:10px;text-align:left;border:1px solid var(--border);}
+.semester-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92rem;}
+.semester-table th, .semester-table td{padding:12px 14px;text-align:left;border:1px solid var(--border);vertical-align:top;}
 .semester-table th{background:var(--card);font-weight:600;}
 .semester-table td button{margin-right:5px;}
+.subject-list{display:flex;flex-direction:column;gap:6px;}
+.subject-row-preview{font-size:.84rem;color:var(--subtext);}
+.subject-row-preview strong{color:var(--text);}
+@media(max-width:900px){
+  .semester-table th, .semester-table td{padding:10px;}
+}
+@media(max-width:700px){
+  .semester-table, .semester-table thead, .semester-table tbody, .semester-table th, .semester-table td, .semester-table tr{display:block;}
+  .semester-table thead tr{display:none;}
+  .semester-table tr{margin-bottom:16px;}
+  .semester-table td{border:none;position:relative;padding-left:45% !important;}
+  .semester-table td:before{position:absolute;top:12px;left:14px;width:40%;padding-right:10px;white-space:nowrap;font-weight:600;color:var(--subtext);}
+  .semester-table td:nth-of-type(1):before{content:"Semester";}
+  .semester-table td:nth-of-type(2):before{content:"Credits";}
+  .semester-table td:nth-of-type(3):before{content:"SGPA";}
+  .semester-table td:nth-of-type(4):before{content:"Subjects";}
+  .semester-table td:nth-of-type(5):before{content:"Actions";}
+}

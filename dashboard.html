@@ -25,12 +25,13 @@
 </nav>
 
 <div class="page">
-  <div class="hero">
-    <h2>Welcome back, <span id="userName">Student</span> &#128075;</h2>
-    <p>Track your academic performance across all semesters.</p>
-  </div>
+  <div class="main-content">
+    <div class="hero">
+      <h2>Welcome back, <span id="userName">Student</span> &#128075;</h2>
+      <p>Track your academic performance across all semesters.</p>
+    </div>
 
-  <div class="stats-grid">
+    <div class="stats-grid">
     <div class="stat-card"><div class="stat-val" id="statSems">&#8212;</div><div class="stat-lbl">Semesters</div></div>
     <div class="stat-card"><div class="stat-val" id="statCGPA">&#8212;</div><div class="stat-lbl">CGPA</div></div>
     <div class="stat-card"><div class="stat-val" id="statCredits">&#8212;</div><div class="stat-lbl">Total Credits</div></div>
@@ -45,12 +46,13 @@
 
   <div class="card">
     <h2>&#128203; Semester History</h2>
-    <div class="semester-list" id="semHistory"><p class="info">Loading...</p></div>
-    <div class="btn-row" style="margin-top:10px;">
+    <p class="info" id="historyProfileInfo">Profile: Loading...</p>
+    <div class="btn-row" style="margin-bottom:14px;">
       <button class="btn btn-primary" onclick="openAddModal()">+ Add Semester</button>
       <button class="btn btn-outline" onclick="exportDashboardPDF()">Export PDF</button>
       <button class="btn btn-outline" onclick="exportDashboardCSV()">Export CSV</button>
     </div>
+    <div class="semester-list" id="semHistory"><p class="info">Loading...</p></div>
   </div>
 
   <!-- Edit/Add Modal -->
@@ -63,7 +65,7 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Semester Name</label>
-          <input type="text" id="editSemName" placeholder="e.g. Semester 1"/>
+          <input type="text" id="editSemName" placeholder="Semester 1" />
         </div>
         <div class="subject-header">
           <span>Subject Name</span>
@@ -77,7 +79,7 @@
       <div id="editError" class="error"></div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveSemester()">Save</button>
+        <button class="btn btn-primary" onclick="saveSemester()">Save Changes</button>
       </div>
     </div>
   </div>
@@ -99,9 +101,45 @@
     </div>
   </div>
 </div>
+<aside class="sidebar">
+  <div class="card profile-card">
+    <div class="profile-top">
+      <div class="profile-image">
+        <img id="profileImage" src="https://i.pravatar.cc/150?u=placeholder" alt="Profile" />
+      </div>
+      <div class="profile-meta">
+        <h3 id="profileNameTitle">Your Name</h3>
+        <p id="profileBranchTitle">Branch</p>
+        <p id="profileRollTitle">Roll No</p>
+        <button class="btn btn-outline btn-sm" type="button" onclick="triggerProfileImageUpload()">Change Photo</button>
+        <input type="file" id="profileImageInput" accept="image/*" style="display:none;" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="profileName" placeholder="Your Name" />
+    </div>
+    <div class="form-group">
+      <label>Roll Number</label>
+      <input type="text" id="profileRoll" placeholder="Your Roll No" />
+    </div>
+    <div class="form-group">
+      <label>Branch</label>
+      <input type="text" id="profileBranch" placeholder="Your Branch" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="profileEmail" placeholder="you@example.com" readonly />
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+    </div>
+    <div id="profileMsg" class="info" style="margin-top:10px;"></div>
+  </div>
+</aside>
 
 <script type="module">
-  import { requireAuth, getSemesters, getSemester, saveSemester, deleteSemester, gradePerformance, GRADE_POINTS, toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded } from "./app.js";
+  import { requireAuth, getSemesters, getSemester, saveSemester, deleteSemester, saveUserProfile, getUserProfile, updateUserProfile, gradePerformance, GRADE_POINTS, toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded } from "./app.js";
   window.toggleDark = toggleDark;
   window.logout = logout;
   initDarkMode();
@@ -109,20 +147,104 @@
 
   let chartInst = null;
   let uid = null;
+  let currentUser = null;
   let allSemesters = [];
   let editingSem = null;
-  let isAdding = false;
   let subjectCount = 0;
+  let profileImageData = null;
 
   requireAuth(async user => {
+    currentUser = user;
     uid = user.uid;
     document.getElementById("userChip").textContent = user.email;
     document.getElementById("userName").textContent = user.displayName || user.email.split("@")[0];
+    await loadProfile();
     allSemesters = await getSemesters(uid);
     renderStats(allSemesters);
     renderChart(allSemesters);
     renderHistory(allSemesters);
   });
+
+  async function loadProfile() {
+    try {
+      const profile = await getUserProfile(uid);
+      const name = profile?.name || currentUser.displayName || "";
+      profileImageData = profile?.photoURL || currentUser.photoURL || `https://i.pravatar.cc/150?u=${encodeURIComponent(currentUser.email || 'user')}`;
+      document.getElementById("profileName").value = name;
+      document.getElementById("profileRoll").value = profile?.roll || "";
+      document.getElementById("profileBranch").value = profile?.branch || "";
+      document.getElementById("profileEmail").value = currentUser.email || "";
+      document.getElementById("profileNameTitle").textContent = name || "Your Name";
+      document.getElementById("profileBranchTitle").textContent = profile?.branch || "Branch";
+      document.getElementById("profileRollTitle").textContent = profile?.roll ? `Roll No: ${profile.roll}` : "Roll No";
+      document.getElementById("profileImage").src = profileImageData;
+
+      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: ${profile?.roll || 'N/A'} | Branch: ${profile?.branch || 'N/A'}`;
+    } catch (error) {
+      console.error("Profile load error:", error);
+      // Fallback to basic user info
+      const name = currentUser.displayName || currentUser.email.split("@")[0] || "";
+      document.getElementById("profileName").value = name;
+      document.getElementById("profileNameTitle").textContent = name;
+      document.getElementById("profileImage").src = currentUser.photoURL || `https://i.pravatar.cc/150?u=${encodeURIComponent(currentUser.email || 'user')}`;
+
+      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: N/A | Branch: N/A`;
+    }
+  }
+
+  window.triggerProfileImageUpload = () => {
+    document.getElementById("profileImageInput").click();
+  };
+
+  document.getElementById("profileImageInput").addEventListener("change", async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      profileImageData = reader.result;
+      document.getElementById("profileImage").src = profileImageData;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  window.saveProfile = async () => {
+    const msg = document.getElementById("profileMsg");
+    msg.textContent = "Saving...";
+    try {
+      const name = document.getElementById("profileName").value.trim();
+      const roll = document.getElementById("profileRoll").value.trim();
+      const branch = document.getElementById("profileBranch").value.trim();
+      if (!name || !roll || !branch) {
+        msg.textContent = "Please fill in all profile fields.";
+        return;
+      }
+
+      // Save to Firestore
+      await saveUserProfile(uid, { name, roll, branch, email: currentUser.email, photoURL: profileImageData });
+
+      // Update Firebase Auth display name (photoURL is not supported in updateProfile)
+      if (currentUser.displayName !== name) {
+        await updateUserProfile({ displayName: name });
+        document.getElementById("userName").textContent = name;
+      }
+
+      // Update profile display
+      document.getElementById("profileNameTitle").textContent = name;
+      document.getElementById("profileBranchTitle").textContent = branch;
+      document.getElementById("profileRollTitle").textContent = `Roll No: ${roll}`;
+
+      document.getElementById("historyProfileInfo").textContent = `Student: ${name} | Roll: ${roll} | Branch: ${branch}`;
+
+      msg.textContent = "Profile saved successfully.";
+    } catch (error) {
+      console.error("Profile save error:", error);
+      msg.textContent = "Failed to save profile. Please try again.";
+    }
+  };
 
   function renderStats(sems) {
     if (!sems.length) return;
@@ -175,28 +297,208 @@
   function renderHistory(sems) {
     const el = document.getElementById("semHistory");
     if (!sems.length) { el.innerHTML = '<p class="info">No semesters saved yet.</p>'; return; }
-    let html = '<table class="semester-table"><thead><tr><th>Semester</th><th>Credits</th><th>SGPA</th><th>Actions</th></tr></thead><tbody>';
-    sems.forEach(s => {
-      html += `<tr>
-        <td>${s.sem}</td>
-        <td>${s.credits}</td>
-        <td>${parseFloat(s.sgpa).toFixed(2)}</td>
-        <td>
-          <button class="btn btn-outline btn-sm" onclick="openEditModal('${s.sem}')">Edit</button>
-          <button class="remove-btn" onclick="delSem('${s.sem}')">&#x2715;</button>
-        </td>
-      </tr>`;
+    el.innerHTML = sems.map(s => {
+      const encoded = encodeURIComponent(s.sem);
+      return `
+      <div class="sem-item">
+        <div class="sem-info">
+          <span>${s.sem}</span>
+          <span class="badge">${s.credits} cr</span>
+        </div>
+        <div class="sem-actions">
+          <span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span>
+          <button class="btn btn-outline btn-sm" data-edit-sem="${encoded}">Edit</button>
+          <button class="btn btn-outline btn-sm" data-export-pdf="${encoded}">PDF</button>
+          <button class="btn btn-outline btn-sm" data-export-csv="${encoded}">CSV</button>
+          <button class="remove-btn" data-delete-sem="${encoded}">&#x2715;</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    el.querySelectorAll("[data-edit-sem]").forEach(btn => {
+      btn.addEventListener("click", () => openEditModal(decodeURIComponent(btn.dataset.editSem)));
     });
-    html += '</tbody></table>';
-    el.innerHTML = html;
+    el.querySelectorAll("[data-delete-sem]").forEach(btn => {
+      btn.addEventListener("click", () => delSem(decodeURIComponent(btn.dataset.deleteSem)));
+    });
+    el.querySelectorAll("[data-export-pdf]").forEach(btn => {
+      btn.addEventListener("click", () => exportSemesterPDF(decodeURIComponent(btn.dataset.exportPdf)));
+    });
+    el.querySelectorAll("[data-export-csv]").forEach(btn => {
+      btn.addEventListener("click", () => exportSemesterCSV(decodeURIComponent(btn.dataset.exportCsv)));
+    });
   }
+
+  window.exportSemesterPDF = async (sem) => {
+    const data = await getSemester(uid, sem);
+    if (!data) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const title = "JAWAHARLAL NEHRU TECHNOLOGICAL UNIVERSITY GURJAJADA VIZIANAGARAM";
+    const subtitle = "III B. TECH | SEMESTER REGULAR EXAMINATIONS (R23)";
+    doc.setFontSize(12);
+    doc.text(title, 40, 40);
+    doc.setFontSize(10);
+    doc.text(subtitle, 40, 56);
+    doc.setLineWidth(1);
+    doc.line(40, 66, 555, 66);
+    // Profile
+    const profile = await getUserProfile(uid);
+    const name = profile?.name || currentUser.displayName || "Student";
+    const roll = profile?.roll || "N/A";
+    const branch = profile?.branch || "N/A";
+    doc.setFontSize(11);
+    doc.text(`Name: ${name}`, 40, 80);
+    doc.text(`Roll Number: ${roll}`, 40, 96);
+    doc.text(`Branch: ${branch}`, 40, 112);
+    doc.setFontSize(16);
+    doc.text("SEMESTER RESULT", 40, 136);
+    doc.setFontSize(11);
+    doc.text(`Semester : ${sem}`, 40, 158);
+    doc.text(`SGPA     : ${parseFloat(data.sgpa).toFixed(2)}`, 40, 174);
+    doc.text(`Credits  : ${data.credits}`, 40, 190);
+    doc.text(`Subjects : ${data.subjects.length}`, 40, 206);
+    const perf = gradePerformance(data.sgpa);
+    doc.text(`Performance: ${perf}`, 40, 222);
+    let y = 248;
+    doc.setFontSize(11);
+    doc.text("S.no", 40, y);
+    doc.text("Subject", 80, y);
+    doc.text("Grade", 320, y);
+    doc.text("Grade Point", 380, y);
+    doc.text("Credits", 450, y);
+    doc.text("Status", 510, y);
+    y += 8;
+    doc.setLineWidth(0.5);
+    doc.line(40, y, 555, y);
+    y += 16;
+    data.subjects.forEach((sub, index) => {
+      y = pdfNewPageIfNeeded(doc, y + 2);
+      const status = ["F", "Ab"].includes(sub.grade) ? "Fail" : "Pass";
+      doc.text(String(index + 1), 40, y);
+      doc.text(sub.name || "Subject", 80, y);
+      doc.text(sub.grade, 320, y);
+      doc.text(String(GRADE_POINTS[sub.grade] || 0), 385, y);
+      doc.text(String(sub.credit), 455, y);
+      doc.text(status, 510, y);
+      y += 18;
+    });
+    y += 12;
+    if (y > 740) y = pdfNewPageIfNeeded(doc, y);
+    doc.setFontSize(10);
+    doc.text(`Generated from SGPA & CGPA Calculator`, 40, y);
+    doc.save(`Semester_${sem.replace(/\s+/g, "_")}.pdf`);
+  };
+
+  window.exportSemesterCSV = async (sem) => {
+    const data = await getSemester(uid, sem);
+    if (!data) return;
+    const profile = await getUserProfile(uid);
+    const name = profile?.name || currentUser.displayName || "Student";
+    const roll = profile?.roll || "N/A";
+    const branch = profile?.branch || "N/A";
+    let csv = `Name,${name}\nRoll Number,${roll}\nBranch,${branch}\n\nSubject,Credits,Grade,Points\n`;
+    data.subjects.forEach(sub => {
+      const pt = GRADE_POINTS[sub.grade] || 0;
+      csv += `"${sub.name || "Subject"}",${sub.credit},${sub.grade},${pt}\n`;
+    });
+    csv += `\nSemester,${sem}\nSGPA,${data.sgpa}\nCredits,${data.credits}\n`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Semester_${sem.replace(/\s+/g, "_")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  window.exportDashboardPDF = async () => {
+    const sems = allSemesters;
+    if (!sems.length) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const title = "JAWAHARLAL NEHRU TECHNOLOGICAL UNIVERSITY GURJAJADA VIZIANAGARAM";
+    const subtitle = "III B. TECH | SEMESTER REGULAR EXAMINATIONS (R23)";
+    doc.setFontSize(12);
+    doc.text(title, 40, 40);
+    doc.setFontSize(10);
+    doc.text(subtitle, 40, 56);
+    doc.setLineWidth(1);
+    doc.line(40, 66, 555, 66);
+    // Profile
+    const profile = await getUserProfile(uid);
+    const name = profile?.name || currentUser.displayName || "Student";
+    const roll = profile?.roll || "N/A";
+    const branch = profile?.branch || "N/A";
+    doc.setFontSize(11);
+    doc.text(`Name: ${name}`, 40, 80);
+    doc.text(`Roll Number: ${roll}`, 40, 96);
+    doc.text(`Branch: ${branch}`, 40, 112);
+    const tw = sems.reduce((s,x) => s + parseFloat(x.sgpa)*x.credits, 0);
+    const tc = sems.reduce((s,x) => s + x.credits, 0);
+    const cgpa = parseFloat((tw/tc).toFixed(2));
+    doc.setFontSize(16);
+    doc.text("CGPA RESULT", 40, 136);
+    doc.setFontSize(11);
+    doc.text(`CGPA     : ${cgpa.toFixed(2)}`, 40, 158);
+    doc.text(`Total Credits  : ${tc}`, 40, 174);
+    doc.text(`Semesters : ${sems.length}`, 40, 190);
+    doc.text(`Performance: ${gradePerformance(cgpa)}`, 40, 206);
+    let y = 232;
+    doc.setFontSize(11);
+    doc.text("Semester", 40, y);
+    doc.text("SGPA", 200, y);
+    doc.text("Credits", 280, y);
+    doc.text("Performance", 360, y);
+    y += 8;
+    doc.setLineWidth(0.5);
+    doc.line(40, y, 555, y);
+    y += 16;
+    sems.forEach((s, index) => {
+      y = pdfNewPageIfNeeded(doc, y + 2);
+      doc.text(s.sem, 40, y);
+      doc.text(parseFloat(s.sgpa).toFixed(2), 200, y);
+      doc.text(String(s.credits), 280, y);
+      doc.text(gradePerformance(s.sgpa), 360, y);
+      y += 18;
+    });
+    y += 12;
+    if (y > 740) y = pdfNewPageIfNeeded(doc, y);
+    doc.setFontSize(10);
+    doc.text(`Generated from SGPA & CGPA Calculator`, 40, y);
+    doc.save(`CGPA_${name.replace(/\s+/g, "_")}.pdf`);
+  };
+
+  window.exportDashboardCSV = async () => {
+    const sems = allSemesters;
+    if (!sems.length) return;
+    const profile = await getUserProfile(uid);
+    const name = profile?.name || currentUser.displayName || "Student";
+    const roll = profile?.roll || "N/A";
+    const branch = profile?.branch || "N/A";
+    let csv = `Name,${name}\nRoll Number,${roll}\nBranch,${branch}\n\nSemester,SGPA,Credits,Performance\n`;
+    sems.forEach(s => {
+      csv += `"${s.sem}",${s.sgpa},${s.credits},${gradePerformance(s.sgpa)}\n`;
+    });
+    const tw = sems.reduce((s,x) => s + parseFloat(x.sgpa)*x.credits, 0);
+    const tc = sems.reduce((s,x) => s + x.credits, 0);
+    const cgpa = parseFloat((tw/tc).toFixed(2));
+    csv += `\nCGPA,${cgpa}\nTotal Credits,${tc}\nSemesters,${sems.length}\nPerformance,${gradePerformance(cgpa)}\n`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `CGPA_${name.replace(/\s+/g, "_")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   window.openEditModal = async (sem) => {
     editingSem = sem;
-    isAdding = false;
     document.getElementById("modalTitle").textContent = "Edit " + sem;
-    document.getElementById("editSemName").value = sem;
-    document.getElementById("editSemName").readOnly = false;
+    const semInput = document.getElementById("editSemName");
+    semInput.value = sem;
+    semInput.readOnly = true;
     document.getElementById("editSubjectRows").innerHTML = "";
     document.getElementById("editError").textContent = "";
     subjectCount = 0;
@@ -213,10 +515,10 @@
 
   window.openAddModal = () => {
     editingSem = null;
-    isAdding = true;
     document.getElementById("modalTitle").textContent = "Add New Semester";
-    document.getElementById("editSemName").value = "";
-    document.getElementById("editSemName").readOnly = false;
+    const semInput = document.getElementById("editSemName");
+    semInput.value = "";
+    semInput.readOnly = false;
     document.getElementById("editSubjectRows").innerHTML = "";
     document.getElementById("editError").textContent = "";
     subjectCount = 0;
@@ -227,8 +529,6 @@
 
   window.closeModal = () => {
     document.getElementById("editModal").style.display = "none";
-    editingSem = null;
-    isAdding = false;
   };
 
   window.addSubject = (prefill) => {
@@ -239,14 +539,17 @@
     row.id = "sub-row-" + id;
     row.innerHTML =
       '<div class="sub-name"><label>Subject Name</label>' +
-      '<input type="text" placeholder="e.g. Mathematics" id="sub-name-' + id + '"/></div>' +
+      '<input type="text" placeholder="e.g. Mathematics" id="sub-name-' + id + '"/>' +
+      '</div>' +
       '<div><label>Credits</label>' +
-      '<input type="number" min="1" max="6" placeholder="1-6" id="sub-credit-' + id + '"/></div>' +
+      '<input type="number" min="1" max="6" placeholder="1-6" id="sub-credit-' + id + '"/>' +
+      '</div>' +
       '<div><label>Grade</label>' +
       '<select id="sub-grade-' + id + '"><option value="">Grade</option>' +
       '<option>S</option><option>A</option><option>B</option><option>C</option>' +
-      '<option>D</option><option>E</option><option>F</option><option>Ab</option></select></div>' +
-      '<button class="remove-btn" onclick="removeSubject(' + id + ')">&#x2715;</button>';
+      '<option>D</option><option>E</option><option>F</option><option>Ab</option></select>' +
+      '</div>' +
+      '<button class="remove-btn" type="button" onclick="removeSubject(' + id + ')">&#x2715;</button>';
     document.getElementById("editSubjectRows").appendChild(row);
     if (prefill) {
       document.getElementById("sub-name-" + id).value   = prefill.name   || "";
@@ -263,19 +566,14 @@
     const semName = document.getElementById("editSemName").value.trim();
     if (!semName) { err.textContent = "Please enter semester name."; return; }
 
-    if (isAdding) {
-      const exists = allSemesters.some(s => s.sem.toLowerCase() === semName.toLowerCase());
-      if (exists) { err.textContent = "Semester already exists."; return; }
-    } else {
-      // For edit, if renaming, check if new name exists (except current)
-      if (semName.toLowerCase() !== editingSem.toLowerCase()) {
-        const exists = allSemesters.some(s => s.sem.toLowerCase() === semName.toLowerCase());
-        if (exists) { err.textContent = "Semester name already exists."; return; }
-      }
-    }
-
     const rows = document.querySelectorAll("#editSubjectRows .subject-row");
     if (!rows.length) { err.textContent = "Add at least one subject."; return; }
+
+    const existingSem = allSemesters.find(s => s.sem === semName);
+    if (!editingSem && existingSem) {
+      err.textContent = "This semester already exists. Edit it from history instead.";
+      return;
+    }
 
     let tc = 0, tp = 0, valid = true;
     const subjects = [];
@@ -284,86 +582,161 @@
       const nm = document.getElementById("sub-name-" + id).value.trim();
       const cr = parseFloat(document.getElementById("sub-credit-" + id).value);
       const gr = document.getElementById("sub-grade-" + id).value;
-      if (!cr || cr < 1 || cr > 6 || !gr) { valid = false; }
-      else { tc += cr; tp += cr * GRADE_POINTS[gr]; subjects.push({ name: nm || "Subject", credit: cr, grade: gr }); }
+      if (!nm || !cr || cr < 1 || cr > 6 || !gr) { valid = false; }
+      else { tc += cr; tp += cr * GRADE_POINTS[gr]; subjects.push({ name: nm, credit: cr, grade: gr }); }
     });
-    if (!valid) { err.textContent = "Fill all credits (1-6) and grades correctly."; return; }
+    if (!valid) { err.textContent = "Fill all subject fields correctly with valid credits and grade."; return; }
 
     const sgpa = parseFloat((tp/tc).toFixed(2));
     const data = { sem: semName, sgpa, credits: tc, subjects };
 
-    try {
-      if (!isAdding && semName.toLowerCase() !== editingSem.toLowerCase()) {
-        // Renaming: delete old and save new
-        await deleteSemester(uid, editingSem);
-      }
-      await saveSemester(uid, data);
-      closeModal();
-      allSemesters = await getSemesters(uid);
-      renderStats(allSemesters);
-      renderChart(allSemesters);
-      renderHistory(allSemesters);
-    } catch(e) {
-      err.textContent = "Failed to save. Check your connection.";
+    if (editingSem && editingSem !== semName) {
+      await deleteSemester(uid, editingSem);
     }
+
+    await saveSemester(uid, data);
+    const sems = await getSemesters(uid);
+    allSemesters = sems;
+    renderStats(sems);
+    renderChart(sems);
+    renderHistory(sems);
+    closeModal();
   };
 
   window.delSem = async sem => {
     if (!confirm("Delete " + sem + "?")) return;
     await deleteSemester(uid, sem);
-    allSemesters = await getSemesters(uid);
-    renderStats(allSemesters);
-    renderChart(allSemesters);
-    renderHistory(allSemesters);
-  };
-
-  window.exportDashboardPDF = () => {
-    if (!allSemesters.length) { alert("No semesters to export."); return; }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(16); doc.text("JNTUGV R23 - CGPA Report", 20, 20);
-    doc.setFontSize(11);
-    let y = 34;
-    allSemesters.forEach(sem => {
-      y = pdfNewPageIfNeeded(doc, y);
-      doc.text(`${sem.sem}: SGPA ${sem.sgpa}, Credits ${sem.credits}`, 20, y);
-      y += 9;
-      if (sem.subjects) {
-        sem.subjects.forEach(sub => {
-          y = pdfNewPageIfNeeded(doc, y);
-          doc.text(`  ${sub.name} | Credits: ${sub.credit} | Grade: ${sub.grade}`, 20, y);
-          y += 9;
-        });
-      }
-      y += 5;
-    });
-    const totalCredits = allSemesters.reduce((s, x) => s + x.credits, 0);
-    const totalWeighted = allSemesters.reduce((s, x) => s + parseFloat(x.sgpa) * x.credits, 0);
-    const cgpa = parseFloat((totalWeighted / totalCredits).toFixed(2));
-    y = pdfNewPageIfNeeded(doc, y);
-    doc.text(`Overall CGPA: ${cgpa}`, 20, y);
-    doc.save("CGPA_Report.pdf");
+    const sems = await getSemesters(uid);
+    allSemesters = sems;
+    renderStats(sems);
+    renderChart(sems);
+    renderHistory(sems);
   };
 
   window.exportDashboardCSV = () => {
-    if (!allSemesters.length) { alert("No semesters to export."); return; }
-    let csv = "Semester,SGPA,Credits,Subject,Credits,Grade\n";
+    if (!allSemesters.length) {
+      alert("No semester data available to export.");
+      return;
+    }
+    let csv = "Semester,Credits,SGPA,Subjects\n";
     allSemesters.forEach(sem => {
-      if (sem.subjects) {
-        sem.subjects.forEach(sub => {
-          csv += `"${sem.sem}",${sem.sgpa},${sem.credits},"${sub.name}",${sub.credit},${sub.grade}\n`;
-        });
-      } else {
-        csv += `"${sem.sem}",${sem.sgpa},${sem.credits},,,,\n`;
-      }
+      const subjectCount = sem.subjects ? sem.subjects.length : 0;
+      csv += `${sem.sem},${sem.credits},${parseFloat(sem.sgpa).toFixed(2)},${subjectCount}\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "CGPA_Report.csv";
+    a.download = `Dashboard_Semesters_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  window.exportDashboardPDF = () => {
+    if (!allSemesters.length) {
+      alert("No semester data available to export.");
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("SGPA & CGPA Dashboard Export", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Export date: ${new Date().toLocaleDateString()}`, 40, 56);
+    doc.text(`Total Semesters: ${allSemesters.length}`, 40, 72);
+    doc.setLineWidth(0.5);
+    doc.line(40, 80, 555, 80);
+
+    let y = 100;
+    doc.setFontSize(10);
+    doc.text("Semester", 40, y);
+    doc.text("SGPA", 200, y);
+    doc.text("Credits", 280, y);
+    doc.text("Subjects", 360, y);
+    doc.text("Performance", 460, y);
+    y += 10;
+    doc.line(40, y, 555, y);
+    y += 18;
+
+    allSemesters.forEach(sem => {
+      if (y > 740) {
+        doc.addPage();
+        y = 60;
+      }
+      doc.text(sem.sem, 40, y);
+      doc.text(parseFloat(sem.sgpa).toFixed(2), 200, y);
+      doc.text(String(sem.credits), 280, y);
+      doc.text(String(sem.subjects ? sem.subjects.length : 0), 360, y);
+      doc.text(gradePerformance(parseFloat(sem.sgpa)), 460, y);
+      y += 18;
+    });
+
+    doc.save(`Dashboard_Semesters_${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
+  window.exportSemesterCSV = async semName => {
+    const semester = allSemesters.find(s => s.sem === semName);
+    if (!semester) { alert("Semester not found."); return; }
+    const rows = semester.subjects || [];
+    let csv = "Subject,Credits,Grade,Points,Status\n";
+    rows.forEach(sub => {
+      const points = GRADE_POINTS[sub.grade] || 0;
+      const status = ["F", "Ab"].includes(sub.grade) ? "Fail" : "Pass";
+      csv += `"${sub.name}",${sub.credit},${sub.grade},${points},${status}\n`;
+    });
+    csv += `\nSemester,${semester.sem}\nSGPA,${parseFloat(semester.sgpa).toFixed(2)}\nCredits,${semester.credits}\nSubjects,${rows.length}\n`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Semester_${semester.sem.replace(/\s+/g, "_")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  window.exportSemesterPDF = async semName => {
+    const semester = allSemesters.find(s => s.sem === semName);
+    if (!semester) { alert("Semester not found."); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("SGPA & CGPA Semester Export", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Semester: ${semester.sem}`, 40, 60);
+    doc.text(`SGPA: ${parseFloat(semester.sgpa).toFixed(2)}`, 40, 76);
+    doc.text(`Credits: ${semester.credits}`, 40, 92);
+    doc.text(`Subjects: ${semester.subjects ? semester.subjects.length : 0}`, 40, 108);
+    doc.setLineWidth(0.5);
+    doc.line(40, 120, 555, 120);
+
+    let y = 140;
+    doc.setFontSize(10);
+    doc.text("S.no", 40, y);
+    doc.text("Subject", 80, y);
+    doc.text("Credits", 320, y);
+    doc.text("Grade", 400, y);
+    doc.text("Points", 460, y);
+    doc.text("Status", 520, y);
+    y += 12;
+    doc.line(40, y, 555, y);
+    y += 18;
+
+    (semester.subjects || []).forEach((sub, index) => {
+      if (y > 740) {
+        doc.addPage();
+        y = 60;
+      }
+      const status = ["F", "Ab"].includes(sub.grade) ? "Fail" : "Pass";
+      doc.text(String(index + 1), 40, y);
+      doc.text(sub.name || "Subject", 80, y);
+      doc.text(String(sub.credit), 320, y);
+      doc.text(sub.grade, 400, y);
+      doc.text(String(GRADE_POINTS[sub.grade] || 0), 460, y);
+      doc.text(status, 520, y);
+      y += 18;
+    });
+
+    doc.save(`Semester_${semester.sem.replace(/\s+/g, "_")}.pdf`);
   };
 </script>
 </body>

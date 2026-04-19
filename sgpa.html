@@ -24,7 +24,8 @@
 </nav>
 
 <div class="page">
-  <div class="card">
+  <div class="main-content">
+    <div class="card">
     <h2>&#128202; SGPA Calculator</h2>
     <div class="sem-select-row">
       <div>
@@ -60,10 +61,41 @@
       <div id="saveMsg" class="info" style="margin-top:8px;"></div>
     </div>
   </div>
+</div>
+<aside class="sidebar">
+  <div class="card profile-card">
+    <div class="profile-top">
+      <div class="profile-image">
+        <img id="profileImage" src="https://i.pravatar.cc/150?u=placeholder" alt="Profile" />
+      </div>
+      <div class="profile-meta">
+        <h3 id="profileNameTitle">Your Name</h3>
+        <p id="profileBranchTitle">Branch</p>
+        <p id="profileRollTitle">Roll No</p>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="profileName" placeholder="Your Name" readonly />
+    </div>
+    <div class="form-group">
+      <label>Roll Number</label>
+      <input type="text" id="profileRoll" placeholder="Your Roll No" readonly />
+    </div>
+    <div class="form-group">
+      <label>Branch</label>
+      <input type="text" id="profileBranch" placeholder="Your Branch" readonly />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="profileEmail" placeholder="you@example.com" readonly />
+    </div>
+  </div>
+</aside>
 
 <script type="module">
   import { requireAuth, saveSemester, GRADE_POINTS, gradePerformance, toPercent,
-           toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded, stripEmoji } from "./app.js";
+           toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded, stripEmoji, getUserProfile } from "./app.js";
   window.toggleDark = toggleDark;
   window.logout = logout;
   initDarkMode();
@@ -71,12 +103,36 @@
 
   let count = 0, user = null, last = null, saved = false;
 
-  requireAuth(u => {
+  requireAuth(async u => {
     user = u;
     document.getElementById("userChip").textContent = u.email;
+    await loadProfile(u);
     loadAutoSave();
     addSubject(); addSubject();
   });
+
+  async function loadProfile(currentUser) {
+    try {
+      const profile = await getUserProfile(currentUser.uid);
+      const name = profile?.name || currentUser.displayName || "";
+      const photoURL = profile?.photoURL || currentUser.photoURL || `https://i.pravatar.cc/150?u=${encodeURIComponent(currentUser.email || 'user')}`;
+      document.getElementById("profileName").value = name;
+      document.getElementById("profileRoll").value = profile?.roll || "";
+      document.getElementById("profileBranch").value = profile?.branch || "";
+      document.getElementById("profileEmail").value = currentUser.email || "";
+      document.getElementById("profileNameTitle").textContent = name || "Your Name";
+      document.getElementById("profileBranchTitle").textContent = profile?.branch || "Branch";
+      document.getElementById("profileRollTitle").textContent = profile?.roll ? `Roll No: ${profile.roll}` : "Roll No";
+      document.getElementById("profileImage").src = photoURL;
+    } catch (error) {
+      console.error("Profile load error:", error);
+      // Fallback
+      const name = currentUser.displayName || currentUser.email.split("@")[0] || "";
+      document.getElementById("profileName").value = name;
+      document.getElementById("profileNameTitle").textContent = name;
+      document.getElementById("profileImage").src = currentUser.photoURL || `https://i.pravatar.cc/150?u=${encodeURIComponent(currentUser.email || 'user')}`;
+    }
+  }
 
   function saveAutoSave() {
     const data = {
@@ -187,34 +243,75 @@
   window.dlPDF = () => {
     if (!last) { document.getElementById("sgpaError").textContent = "Calculate SGPA first."; return; }
     const { jsPDF } = window.jspdf;
-    const doc  = new jsPDF();
-    const sem  = document.getElementById("semSelect").value;
-    const sgpa = document.getElementById("sgpaValue").textContent;
-    const pct  = document.getElementById("sgpaPercent").textContent;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const sem  = last.sem;
     const perf = stripEmoji(document.getElementById("sgpaPerf").textContent);
-    doc.setFontSize(16); doc.text("JNTUGV R23 - SGPA Result", 20, 20);
+    const title = "JAWAHARLAL NEHRU TECHNOLOGICAL UNIVERSITY GURJAJADA VIZIANAGARAM";
+    const subtitle = "III B. TECH | SEMESTER REGULAR EXAMINATIONS (R23)";
+
+    doc.setFontSize(12);
+    doc.text(title, 40, 40);
+    doc.setFontSize(10);
+    doc.text(subtitle, 40, 56);
+    doc.setLineWidth(1);
+    doc.line(40, 66, 555, 66);
+
+    // Student details
+    const name = document.getElementById("profileName").value || "Student";
+    const roll = document.getElementById("profileRoll").value || "N/A";
+    const branch = document.getElementById("profileBranch").value || "N/A";
     doc.setFontSize(11);
-    doc.text("Semester   : " + sem, 20, 34);
-    doc.text("SGPA       : " + sgpa, 20, 43);
-    doc.text("Percentage : " + pct, 20, 52);
-    doc.text("Performance: " + perf, 20, 61);
-    doc.setFontSize(10); doc.text("Subject Details:", 20, 74);
-    let y = 84;
-    document.querySelectorAll("#subjectRows .subject-row").forEach(row => {
-      const id = row.id.split("-")[1];
-      const nm = document.getElementById("name-" + id).value || "Subject";
-      const cr = document.getElementById("credit-" + id).value;
-      const gr = document.getElementById("grade-" + id).value;
-      y = pdfNewPageIfNeeded(doc, y);
-      doc.text("  " + nm + "  |  Credits: " + cr + "  |  Grade: " + gr + "  |  Points: " + GRADE_POINTS[gr], 20, y);
-      y += 9;
+    doc.text(`Name: ${name}`, 40, 80);
+    doc.text(`Roll Number: ${roll}`, 40, 96);
+    doc.text(`Branch: ${branch}`, 40, 112);
+
+    doc.setFontSize(16);
+    doc.text("SGPA RESULT", 40, 136);
+    doc.setFontSize(11);
+    doc.text(`Semester : ${sem}`, 40, 158);
+    doc.text(`SGPA     : ${last.sgpa.toFixed(2)}`, 40, 174);
+    doc.text(`Credits  : ${last.credits}`, 40, 190);
+    doc.text(`Subjects : ${last.subjects.length}`, 40, 206);
+    doc.text(`Performance: ${perf}`, 40, 222);
+
+    let y = 248;
+    doc.setFontSize(11);
+    doc.text("S.no", 40, y);
+    doc.text("Subject", 80, y);
+    doc.text("Grade", 320, y);
+    doc.text("Grade Point", 380, y);
+    doc.text("Credits", 450, y);
+    doc.text("Status", 510, y);
+    y += 8;
+    doc.setLineWidth(0.5);
+    doc.line(40, y, 555, y);
+    y += 16;
+
+    last.subjects.forEach((sub, index) => {
+      y = pdfNewPageIfNeeded(doc, y + 2);
+      const status = ["F", "Ab"].includes(sub.grade) ? "Fail" : "Pass";
+      doc.text(String(index + 1), 40, y);
+      doc.text(sub.name || "Subject", 80, y);
+      doc.text(sub.grade, 320, y);
+      doc.text(String(GRADE_POINTS[sub.grade] || 0), 385, y);
+      doc.text(String(sub.credit), 455, y);
+      doc.text(status, 510, y);
+      y += 18;
     });
-    doc.save("SGPA_" + sem.replace(/\s+/g,"_") + ".pdf");
+
+    y += 12;
+    if (y > 740) y = pdfNewPageIfNeeded(doc, y);
+    doc.setFontSize(10);
+    doc.text(`Generated from SGPA & CGPA Calculator`, 40, y);
+    doc.save(`SGPA_${sem.replace(/\s+/g, "_")}.pdf`);
   };
 
   window.exportCSV = () => {
     if (!last) { document.getElementById("sgpaError").textContent = "Calculate SGPA first."; return; }
-    let csv = "Subject,Credits,Grade,Points\n";
+    const name = document.getElementById("profileName").value || "Student";
+    const roll = document.getElementById("profileRoll").value || "N/A";
+    const branch = document.getElementById("profileBranch").value || "N/A";
+    let csv = `Name,${name}\nRoll Number,${roll}\nBranch,${branch}\n\nSubject,Credits,Grade,Points\n`;
     document.querySelectorAll("#subjectRows .subject-row").forEach(row => {
       const id = row.id.split("-")[1];
       const nm = document.getElementById("name-" + id).value || "Subject";

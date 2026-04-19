@@ -7,7 +7,7 @@ import {
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  collection, doc, setDoc, getDocs, deleteDoc
+  collection, doc, setDoc, getDocs, deleteDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── Grade points R23 ────────────────────────────────────────────
@@ -43,10 +43,25 @@ export function redirectIfLoggedIn() {
   });
 }
 
-export async function signUp(name, email, password) {
+export async function signUp(name, email, password, roll, branch) {
   const c = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(c.user, { displayName: name });
+  await saveUserProfile(c.user.uid, { name, email, roll, branch });
   return c.user;
+}
+
+export async function saveUserProfile(uid, profile) {
+  await setDoc(doc(db, "users", uid), profile, { merge: true });
+}
+
+export async function getUserProfile(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function updateUserProfile(data) {
+  if (!auth.currentUser) return;
+  await updateProfile(auth.currentUser, data);
 }
 
 export async function signIn(email, password) {
