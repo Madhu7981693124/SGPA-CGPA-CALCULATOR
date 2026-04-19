@@ -70,15 +70,30 @@ select:focus,input:focus{border-color:var(--primary);}
 .btn-sm{padding:6px 14px;font-size:.82rem;}
 
 /* subject rows */
-.subject-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;
-  gap:10px;align-items:end;margin-bottom:12px;}
-@media(max-width:600px){
-  .subject-row{grid-template-columns:1fr 1fr;}
-  .subject-row .sub-name{grid-column:1/-1;}
+.subject-header{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:center;margin-bottom:10px;font-size:.85rem;font-weight:600;color:var(--subtext);}
+.subject-header span{padding:0 6px;}
+.subject-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px;}
+.subject-row .sub-name label{display:none;}
+.subject-row input, .subject-row select{margin-top:0;}
+@media(max-width:700px){
+  .subject-header, .subject-row{grid-template-columns:1fr 1fr;}
+  .subject-header span:nth-child(3), .subject-header span:nth-child(4),
   .subject-row .remove-btn{grid-column:1/-1;}
 }
 .remove-btn{background:var(--danger);color:#fff;border:none;border-radius:8px;
   padding:10px 14px;cursor:pointer;font-size:1rem;}
+
+/* modal */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);
+  display:flex;align-items:center;justify-content:center;z-index:1000;}
+.modal-content{background:var(--bg);border-radius:16px;max-width:760px;width:95%;
+  max-height:85vh;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,0.35);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px;
+  border-bottom:1px solid var(--border);}
+.modal-header h3{margin:0;color:var(--primary);font-size:1.15rem;}
+.modal-close{background:none;border:none;font-size:1.6rem;color:var(--subtext);cursor:pointer;}
+.modal-body{padding:20px;}
+.modal-footer{display:flex;justify-content:end;gap:10px;padding:20px;border-top:1px solid var(--border);}
 
 /* result boxes */
 .result-box{background:linear-gradient(135deg,var(--primary),var(--primary-light));
@@ -181,23 +196,25 @@ select:focus,input:focus{border-color:var(--primary);}
 .subject-row .sub-name{flex:2;}
 .subject-row .remove-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.2rem;}
 
-/* accordion */
-.sem-accordion{margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-.sem-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;
-  background:var(--card);cursor:pointer;border-bottom:1px solid var(--border);}
-.sem-title{display:flex;align-items:center;gap:12px;flex:1;}
-.sem-name{font-weight:600;color:var(--primary);}
-.sgpa-val{color:var(--subtext);font-size:.9rem;}
-.sem-header-actions{display:flex;gap:8px;align-items:center;}
-.expand-icon{font-size:1.2rem;color:var(--subtext);transition:transform 0.3s;}
-.sem-body{max-height:0;overflow:hidden;background:var(--bg);transition:max-height 0.3s ease;}
-.sem-body.expanded{max-height:500px;}
-.subject-detail{display:flex;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border-light);}
-.subject-detail:last-child{border-bottom:none;}
-.sub-name-text{font-weight:500;}
-.sub-meta{color:var(--subtext);font-size:.85rem;}
+/* modal */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);
+  display:flex;align-items:center;justify-content:center;z-index:1000;}
+.modal-content{background:var(--bg);border-radius:12px;max-width:500px;width:90%;
+  max-height:80vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px;
+  border-bottom:1px solid var(--border);}
+.modal-header h3{margin:0;color:var(--primary);}
+.modal-close{background:none;border:none;font-size:1.5rem;color:var(--subtext);cursor:pointer;}
+.modal-body{padding:20px;}
+.modal-footer{display:flex;justify-content:end;gap:10px;padding:20px;border-top:1px solid var(--border);}
 
 /* grade table */
 .grade-table{width:100%;border-collapse:collapse;margin-top:10px;}
 .grade-table th, .grade-table td{padding:8px;text-align:left;border:1px solid var(--border);}
 .grade-table th{background:var(--card);font-weight:600;}
+
+/* semester table */
+.semester-table{width:100%;border-collapse:collapse;margin-top:10px;}
+.semester-table th, .semester-table td{padding:10px;text-align:left;border:1px solid var(--border);}
+.semester-table th{background:var(--card);font-weight:600;}
+.semester-table td button{margin-right:5px;}

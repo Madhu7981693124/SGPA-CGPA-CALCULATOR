@@ -6,6 +6,7 @@
   <title>Dashboard — SGPA & CGPA   Calculator</title>
   <link rel="stylesheet" href="style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <header>
@@ -45,7 +46,11 @@
   <div class="card">
     <h2>&#128203; Semester History</h2>
     <div class="semester-list" id="semHistory"><p class="info">Loading...</p></div>
-    <button class="btn btn-primary" onclick="openAddModal()" style="margin-top:10px;">+ Add Semester</button>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add Semester</button>
+      <button class="btn btn-outline" onclick="exportDashboardPDF()">Export PDF</button>
+      <button class="btn btn-outline" onclick="exportDashboardCSV()">Export CSV</button>
+    </div>
   </div>
 
   <!-- Edit/Add Modal -->
@@ -59,6 +64,12 @@
         <div class="form-group">
           <label>Semester Name</label>
           <input type="text" id="editSemName" placeholder="e.g. Semester 1"/>
+        </div>
+        <div class="subject-header">
+          <span>Subject Name</span>
+          <span>Credits</span>
+          <span>Grade</span>
+          <span></span>
         </div>
         <div id="editSubjectRows"></div>
         <button class="btn btn-outline btn-sm" onclick="addSubject()">+ Add Subject</button>
@@ -90,7 +101,7 @@
 </div>
 
 <script type="module">
-  import { requireAuth, getSemesters, getSemester, saveSemester, deleteSemester, gradePerformance, GRADE_POINTS, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
+  import { requireAuth, getSemesters, getSemester, saveSemester, deleteSemester, gradePerformance, GRADE_POINTS, toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded } from "./app.js";
   window.toggleDark = toggleDark;
   window.logout = logout;
   initDarkMode();
@@ -164,46 +175,28 @@
   function renderHistory(sems) {
     const el = document.getElementById("semHistory");
     if (!sems.length) { el.innerHTML = '<p class="info">No semesters saved yet.</p>'; return; }
-    el.innerHTML = sems.map(s => {
-      const subjectList = (s.subjects && s.subjects.length)
-        ? s.subjects.map(sub => `<div class="subject-detail"><span class="sub-name-text">${sub.name}</span><span class="sub-meta">Credits: ${sub.credit} | Grade: <strong>${sub.grade}</strong></span></div>`).join("")
-        : "<p class='info' style='margin:0;'>No subjects recorded.</p>";
-      return `
-      <div class="sem-accordion">
-        <div class="sem-header" onclick="toggleSem('${s.sem}')">
-          <div class="sem-title">
-            <span class="sem-name">${s.sem}</span>
-            <span class="badge">${s.credits} cr</span>
-            <span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span>
-          </div>
-          <div class="sem-header-actions">
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openEditModal('${s.sem}')">Edit</button>
-            <button class="remove-btn" onclick="event.stopPropagation(); delSem('${s.sem}')">&#x2715;</button>
-            <span class="expand-icon" id="icon-${s.sem.replace(/\s+/g,'_')}">&#9660;</span>
-          </div>
-        </div>
-        <div class="sem-body" id="body-${s.sem.replace(/\s+/g,'_')}">
-          ${subjectList}
-        </div>
-      </div>`;
-    }).join("");
+    let html = '<table class="semester-table"><thead><tr><th>Semester</th><th>Credits</th><th>SGPA</th><th>Actions</th></tr></thead><tbody>';
+    sems.forEach(s => {
+      html += `<tr>
+        <td>${s.sem}</td>
+        <td>${s.credits}</td>
+        <td>${parseFloat(s.sgpa).toFixed(2)}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="openEditModal('${s.sem}')">Edit</button>
+          <button class="remove-btn" onclick="delSem('${s.sem}')">&#x2715;</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
   }
-
-  window.toggleSem = (sem) => {
-    const key = sem.replace(/\s+/g,'_');
-    const body = document.getElementById("body-" + key);
-    const icon = document.getElementById("icon-" + key);
-    const isOpen = body.classList.contains("expanded");
-    body.classList.toggle("expanded", !isOpen);
-    icon.textContent = isOpen ? "▼" : "▲";
-  };
 
   window.openEditModal = async (sem) => {
     editingSem = sem;
     isAdding = false;
     document.getElementById("modalTitle").textContent = "Edit " + sem;
     document.getElementById("editSemName").value = sem;
-    document.getElementById("editSemName").readOnly = true;
+    document.getElementById("editSemName").readOnly = false;
     document.getElementById("editSubjectRows").innerHTML = "";
     document.getElementById("editError").textContent = "";
     subjectCount = 0;
@@ -273,6 +266,12 @@
     if (isAdding) {
       const exists = allSemesters.some(s => s.sem.toLowerCase() === semName.toLowerCase());
       if (exists) { err.textContent = "Semester already exists."; return; }
+    } else {
+      // For edit, if renaming, check if new name exists (except current)
+      if (semName.toLowerCase() !== editingSem.toLowerCase()) {
+        const exists = allSemesters.some(s => s.sem.toLowerCase() === semName.toLowerCase());
+        if (exists) { err.textContent = "Semester name already exists."; return; }
+      }
     }
 
     const rows = document.querySelectorAll("#editSubjectRows .subject-row");
@@ -294,6 +293,10 @@
     const data = { sem: semName, sgpa, credits: tc, subjects };
 
     try {
+      if (!isAdding && semName.toLowerCase() !== editingSem.toLowerCase()) {
+        // Renaming: delete old and save new
+        await deleteSemester(uid, editingSem);
+      }
       await saveSemester(uid, data);
       closeModal();
       allSemesters = await getSemesters(uid);
@@ -312,6 +315,55 @@
     renderStats(allSemesters);
     renderChart(allSemesters);
     renderHistory(allSemesters);
+  };
+
+  window.exportDashboardPDF = () => {
+    if (!allSemesters.length) { alert("No semesters to export."); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16); doc.text("JNTUGV R23 - CGPA Report", 20, 20);
+    doc.setFontSize(11);
+    let y = 34;
+    allSemesters.forEach(sem => {
+      y = pdfNewPageIfNeeded(doc, y);
+      doc.text(`${sem.sem}: SGPA ${sem.sgpa}, Credits ${sem.credits}`, 20, y);
+      y += 9;
+      if (sem.subjects) {
+        sem.subjects.forEach(sub => {
+          y = pdfNewPageIfNeeded(doc, y);
+          doc.text(`  ${sub.name} | Credits: ${sub.credit} | Grade: ${sub.grade}`, 20, y);
+          y += 9;
+        });
+      }
+      y += 5;
+    });
+    const totalCredits = allSemesters.reduce((s, x) => s + x.credits, 0);
+    const totalWeighted = allSemesters.reduce((s, x) => s + parseFloat(x.sgpa) * x.credits, 0);
+    const cgpa = parseFloat((totalWeighted / totalCredits).toFixed(2));
+    y = pdfNewPageIfNeeded(doc, y);
+    doc.text(`Overall CGPA: ${cgpa}`, 20, y);
+    doc.save("CGPA_Report.pdf");
+  };
+
+  window.exportDashboardCSV = () => {
+    if (!allSemesters.length) { alert("No semesters to export."); return; }
+    let csv = "Semester,SGPA,Credits,Subject,Credits,Grade\n";
+    allSemesters.forEach(sem => {
+      if (sem.subjects) {
+        sem.subjects.forEach(sub => {
+          csv += `"${sem.sem}",${sem.sgpa},${sem.credits},"${sub.name}",${sub.credit},${sub.grade}\n`;
+        });
+      } else {
+        csv += `"${sem.sem}",${sem.sgpa},${sem.credits},,,,\n`;
+      }
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "CGPA_Report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 </script>
 </body>
