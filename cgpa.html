@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CGPA — SGPA & CGPA Calculator</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header>
+  <div><h1>&#127891; SGPA & CGPA Calculator</h1><p>R23 Regulation</p></div>
+  <div class="header-right">
+    <span class="user-chip" id="userChip">...</span>
+    <button class="dark-toggle" onclick="toggleDark()">&#127769; Dark</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+<nav>
+  <a href="dashboard.html">&#127968; Dashboard</a>
+  <a href="sgpa.html">&#128202; SGPA</a>
+  <a href="cgpa.html">&#128200; CGPA</a>
+  <a href="about.html">&#8505;&#65039; About</a>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <h2>&#128200; CGPA Calculator</h2>
+    <p class="info" id="noDataMsg">No semesters saved yet. Calculate and save your SGPA first.</p>
+    <div id="semList"></div>
+    <div id="cgpaResult" style="display:none;">
+      <div class="result-box">
+        <div class="sub">Overall CGPA</div>
+        <div class="value" id="cgpaValue">0.00</div>
+        <div class="sub" id="cgpaPercent"></div>
+        <div class="perf" id="cgpaPerf"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>&#128203; Semester Breakdown</h2>
+    <div id="semBreakdown"><p class="info">No data yet.</p></div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, getSemesters, gradePerformance, toPercent, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
+  window.toggleDark = toggleDark;
+  window.logout = logout;
+  initDarkMode();
+  setActiveNav();
+
+  requireAuth(async user => {
+    document.getElementById("userChip").textContent = user.email;
+    const sems = await getSemesters(user.uid);
+    if (!sems.length) return;
+
+    document.getElementById("noDataMsg").style.display = "none";
+
+    const tw = sems.reduce((s, x) => s + parseFloat(x.sgpa) * x.credits, 0);
+    const tc = sems.reduce((s, x) => s + x.credits, 0);
+    const cgpa = parseFloat((tw / tc).toFixed(2));
+
+    document.getElementById("cgpaValue").textContent = cgpa.toFixed(2);
+    document.getElementById("cgpaPercent").textContent = "approx " + toPercent(cgpa) + "%";
+    document.getElementById("cgpaPerf").textContent = gradePerformance(cgpa);
+    document.getElementById("cgpaResult").style.display = "";
+
+    document.getElementById("semBreakdown").innerHTML = sems.map(s => `
+      <div class="sem-item">
+        <div class="sem-info"><span>${s.sem}</span><span class="badge">${s.credits} cr</span></div>
+        <div class="sem-actions"><span class="sgpa-val">SGPA: ${parseFloat(s.sgpa).toFixed(2)}</span></div>
+      </div>`).join("");
+  });
+</script>
+</body>
+</html>
