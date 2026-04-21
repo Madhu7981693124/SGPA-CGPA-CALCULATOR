@@ -9,11 +9,36 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<header>
-  <div><h1>&#127891; SGPA & CGPA   Calculator</h1><p>R23 Regulation</p></div>
-  <div class="header-right">
+<header class="modern-header">
+  <div class="header-container">
+    <!-- Left Side: App Title -->
+    <div class="header-left">
+      <div class="app-title">
+        <h1>📚 SGPA & CGPA Calculator</h1>
+      </div>
+    </div>
+
+    <!-- Center: Welcome Message -->
+    <div class="header-center">
+      <p class="welcome-text">Welcome back, <span id="userName">Ganesh</span> 👋</p>
+    </div>
+
+    <!-- Right Side: Profile Image -->
+    <div class="header-right">
+      <div class="profile-container">
+        <img 
+          src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ganesh" 
+          alt="Profile" 
+          class="profile-image"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Controls Row -->
+  <div class="header-controls">
     <span class="user-chip" id="userChip">...</span>
-    <button class="dark-toggle" onclick="toggleDark()">&#127769; Dark</button>
+    <button class="dark-toggle" onclick="toggleDark()">🌙 Dark</button>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </header>
