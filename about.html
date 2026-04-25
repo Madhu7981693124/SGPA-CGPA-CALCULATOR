@@ -9,35 +9,22 @@
 <body>
 <header class="modern-header">
   <div class="header-container">
-    <!-- Left Side: App Title -->
     <div class="header-left">
-      <div class="app-title">
-        <h1>📚 SGPA & CGPA Calculator</h1>
-      </div>
+      <div class="app-title"><h1>📚 SGPA & CGPA Calculator</h1></div>
     </div>
-
-    <!-- Center: Welcome Message -->
     <div class="header-center">
       <p class="welcome-text">Learn more about the app</p>
     </div>
-
-    <!-- Right Side: Profile Image -->
     <div class="header-right">
       <div class="profile-container">
-        <img 
-          src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" 
-          alt="Profile" 
-          class="profile-image"
-        />
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Profile" class="profile-image"/>
       </div>
     </div>
   </div>
-
-  <!-- Additional Controls Row -->
   <div class="header-controls">
     <span class="user-chip" id="userChip">...</span>
-    <button class="dark-toggle" onclick="toggleDark()">🌙 Dark</button>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="dark-toggle" id="darkToggleBtn">🌙 Dark</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
   </div>
 </header>
 <nav>
@@ -50,7 +37,7 @@
 <div class="page">
   <div class="card">
     <h2>&#8505;&#65039; About This App</h2>
-    <p>This SGPA & CGPA Calculator is designed for students following the R23 Regulation. It helps you calculate your Semester Grade Point Average (SGPA) and Cumulative Grade Point Average (CGPA) easily.</p>
+    <p>This SGPA &amp; CGPA Calculator is designed for students following the R23 Regulation. It helps you calculate your Semester Grade Point Average (SGPA) and Cumulative Grade Point Average (CGPA) easily.</p>
     <h3>Features:</h3>
     <ul>
       <li>Calculate SGPA for individual semesters</li>
@@ -80,12 +67,11 @@
 
 <script type="module">
   import { requireAuth, logout, initDarkMode, toggleDark, setActiveNav } from "./app.js";
-  window.toggleDark = toggleDark;
-  window.logout = logout;
   initDarkMode();
   setActiveNav();
-
-  requireAuth(async user => {
+  document.getElementById("darkToggleBtn").addEventListener("click", toggleDark);
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  requireAuth(user => {
     document.getElementById("userChip").textContent = user.email;
   });
 </script>

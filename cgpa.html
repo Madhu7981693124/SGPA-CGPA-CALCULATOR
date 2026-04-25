@@ -9,35 +9,22 @@
 <body>
 <header class="modern-header">
   <div class="header-container">
-    <!-- Left Side: App Title -->
     <div class="header-left">
-      <div class="app-title">
-        <h1>📚 SGPA & CGPA Calculator</h1>
-      </div>
+      <div class="app-title"><h1>📚 SGPA & CGPA Calculator</h1></div>
     </div>
-
-    <!-- Center: Welcome Message -->
     <div class="header-center">
       <p class="welcome-text">Calculate your CGPA easily</p>
     </div>
-
-    <!-- Right Side: Profile Image -->
     <div class="header-right">
       <div class="profile-container">
-        <img 
-          src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" 
-          alt="Profile" 
-          class="profile-image"
-        />
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" alt="Profile" class="profile-image"/>
       </div>
     </div>
   </div>
-
-  <!-- Additional Controls Row -->
   <div class="header-controls">
     <span class="user-chip" id="userChip">...</span>
-    <button class="dark-toggle" onclick="toggleDark()">🌙 Dark</button>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="dark-toggle" id="darkToggleBtn">🌙 Dark</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
   </div>
 </header>
 <nav>
@@ -49,31 +36,32 @@
 
 <div class="page">
   <div class="card">
-      <h2>&#128200; CGPA Calculator</h2>
-      <p class="info" id="noDataMsg">No semesters saved yet. Calculate and save your SGPA first.</p>
-      <div id="semList"></div>
-      <div id="cgpaResult" style="display:none;">
-        <div class="result-box">
-          <div class="sub">Overall CGPA</div>
-          <div class="value" id="cgpaValue">0.00</div>
-          <div class="sub" id="cgpaPercent"></div>
-          <div class="perf" id="cgpaPerf"></div>
-        </div>
+    <h2>&#128200; CGPA Calculator</h2>
+    <p class="info" id="noDataMsg">No semesters saved yet. Calculate and save your SGPA first.</p>
+    <div id="semList"></div>
+    <div id="cgpaResult" style="display:none;">
+      <div class="result-box">
+        <div class="sub">Overall CGPA</div>
+        <div class="value" id="cgpaValue">0.00</div>
+        <div class="sub" id="cgpaPercent"></div>
+        <div class="perf" id="cgpaPerf"></div>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>&#128203; Semester Breakdown</h2>
-      <div id="semBreakdown"><p class="info">No data yet.</p></div>
     </div>
   </div>
 
+  <div class="card">
+    <h2>&#128203; Semester Breakdown</h2>
+    <div id="semBreakdown"><p class="info">No data yet.</p></div>
+  </div>
+</div>
+
 <script type="module">
-  import { requireAuth, getSemesters, gradePerformance, toPercent, toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
-  window.toggleDark = toggleDark;
-  window.logout = logout;
+  import { requireAuth, getSemesters, gradePerformance, toPercent,
+           toggleDark, logout, initDarkMode, setActiveNav } from "./app.js";
   initDarkMode();
   setActiveNav();
+  document.getElementById("darkToggleBtn").addEventListener("click", toggleDark);
+  document.getElementById("logoutBtn").addEventListener("click", logout);
 
   requireAuth(async user => {
     document.getElementById("userChip").textContent = user.email;
@@ -81,14 +69,13 @@
     if (!sems.length) return;
 
     document.getElementById("noDataMsg").style.display = "none";
-
-    const tw = sems.reduce((s, x) => s + parseFloat(x.sgpa) * x.credits, 0);
-    const tc = sems.reduce((s, x) => s + x.credits, 0);
+    const tw   = sems.reduce((s, x) => s + parseFloat(x.sgpa) * x.credits, 0);
+    const tc   = sems.reduce((s, x) => s + x.credits, 0);
     const cgpa = parseFloat((tw / tc).toFixed(2));
 
-    document.getElementById("cgpaValue").textContent = cgpa.toFixed(2);
+    document.getElementById("cgpaValue").textContent   = cgpa.toFixed(2);
     document.getElementById("cgpaPercent").textContent = "approx " + toPercent(cgpa) + "%";
-    document.getElementById("cgpaPerf").textContent = gradePerformance(cgpa);
+    document.getElementById("cgpaPerf").textContent    = gradePerformance(cgpa);
     document.getElementById("cgpaResult").style.display = "";
 
     document.getElementById("semBreakdown").innerHTML = sems.map(s => `

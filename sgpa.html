@@ -37,8 +37,8 @@
   <!-- Additional Controls Row -->
   <div class="header-controls">
     <span class="user-chip" id="userChip">...</span>
-    <button class="dark-toggle" onclick="toggleDark()">🌙 Dark</button>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="dark-toggle" id="darkToggleBtn">🌙 Dark</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
   </div>
 </header>
 <nav>
@@ -85,14 +85,16 @@
       <div id="saveMsg" class="info" style="margin-top:8px;"></div>
     </div>
   </div>
+</div>
 
 <script type="module">
   import { requireAuth, saveSemester, GRADE_POINTS, gradePerformance, toPercent,
            toggleDark, logout, initDarkMode, setActiveNav, pdfNewPageIfNeeded, stripEmoji } from "./app.js";
-  window.toggleDark = toggleDark;
-  window.logout = logout;
   initDarkMode();
   setActiveNav();
+
+  document.getElementById("darkToggleBtn").addEventListener("click", toggleDark);
+  document.getElementById("logoutBtn").addEventListener("click", logout);
 
   let count = 0, user = null, last = null, saved = false;
 
